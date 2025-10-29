@@ -153,6 +153,6 @@ def augment_dataset(
         seed: Random seed for reproducibility.
     """
     augmenter = ImageAugmenter(
-        augmentations_per_image=augmentations_per_image, seed=seed, save_original=True
+        augmentations_per_image=augmentations_per_image, seed=seed, save_original=False
     )
     augmenter.process_directory(input_dir, output_dir)
