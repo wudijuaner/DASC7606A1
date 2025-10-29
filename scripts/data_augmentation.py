@@ -45,7 +45,7 @@ class ImageAugmenter:
         self.transform = transforms.Compose([
             transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),
-            transforms.AutoAugment(policy=transforms.AutoAugmentPolicy.CIFAR10)
+            # transforms.AutoAugment(policy=transforms.AutoAugmentPolicy.CIFAR10)
         ])
 
     def _set_seed(self):
@@ -153,6 +153,6 @@ def augment_dataset(
         seed: Random seed for reproducibility.
     """
     augmenter = ImageAugmenter(
-        augmentations_per_image=augmentations_per_image, seed=seed, save_original=False
+        augmentations_per_image=augmentations_per_image, seed=seed, save_original=True
     )
     augmenter.process_directory(input_dir, output_dir)
