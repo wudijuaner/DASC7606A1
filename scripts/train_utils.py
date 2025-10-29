@@ -6,7 +6,47 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from tqdm import tqdm
+import numpy as np
 
+class Cutout(object):
+    """Randomly mask out one or more patches from an image.
+
+    Args:
+        n_holes (int): Number of patches to cut out of each image.
+        length (int): The length (in pixels) of each square patch.
+    """
+    def __init__(self, n_holes, length):
+        self.n_holes = n_holes
+        self.length = length
+
+    def __call__(self, img):
+        """
+        Args:
+            img (Tensor): Tensor image of size (C, H, W).
+        Returns:
+            Tensor: Image with n_holes of dimension length x length cut out of it.
+        """
+        h = img.size(1)
+        w = img.size(2)
+
+        mask = np.ones((h, w), np.float32)
+
+        for n in range(self.n_holes):
+            y = np.random.randint(h)
+            x = np.random.randint(w)
+
+            y1 = np.clip(y - self.length // 2, 0, h)
+            y2 = np.clip(y + self.length // 2, 0, h)
+            x1 = np.clip(x - self.length // 2, 0, w)
+            x2 = np.clip(x + self.length // 2, 0, w)
+
+            mask[y1: y2, x1: x2] = 0.
+
+        mask = torch.from_numpy(mask)
+        mask = mask.expand_as(img)
+        img = img * mask
+
+        return img
 
 def load_transforms():
     """
@@ -15,6 +55,17 @@ def load_transforms():
     return transforms.Compose([
         transforms.Resize((32, 32)),
         transforms.ToTensor(),
+        transforms.Normalize(mean=[0.5071, 0.4867, 0.4408], std=[0.2675, 0.2565, 0.2761])
+    ])
+    
+def train_load_transforms():
+    """
+    Load the data transformations for training set
+    """
+    return transforms.Compose([
+        transforms.Resize((32, 32)),
+        transforms.ToTensor(),
+        Cutout(1, 16),
         transforms.Normalize(mean=[0.5071, 0.4867, 0.4408], std=[0.2675, 0.2565, 0.2761])
     ])
 
@@ -31,17 +82,18 @@ def load_data(data_dir, batch_size):
         val_loader: The validation data loader
     """
     # Define data transformations: resize, convert to tensor, and normalize
-    data_transforms = load_transforms()
+    train_data_transforms = train_load_transforms()
+    val_data_transforms = load_transforms()
 
     # Load the train dataset from the augmented data directory
-    train_dataset = datasets.ImageFolder(root=data_dir, transform=data_transforms)
+    train_dataset = datasets.ImageFolder(root=data_dir, transform=train_data_transforms)
 
     # Load the validation dataset from the raw data directory
-    val_dataset = datasets.ImageFolder(root=data_dir + "/../../raw/val", transform=data_transforms)
+    val_dataset = datasets.ImageFolder(root=data_dir + "/../../raw/val", transform=val_data_transforms)
 
     # Create data loaders for training and validation
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=2)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
 
     # Print dataset summary
     print(f"Dataset loaded from: {data_dir}")

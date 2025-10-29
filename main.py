@@ -71,7 +71,7 @@ def parse_args():
                         help="Number of augmentations per image")
 
     # Training parameters
-    parser.add_argument("--batch_size", type=int, default=128,
+    parser.add_argument("--batch_size", type=int, default=2,
                         help="Batch size for training")
     parser.add_argument("--num_epochs", type=int, default=300,
                         help="Number of training epochs")
