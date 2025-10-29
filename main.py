@@ -75,9 +75,9 @@ def parse_args():
                         help="Batch size for training")
     parser.add_argument("--num_epochs", type=int, default=300,
                         help="Number of training epochs")
-    parser.add_argument("--lr", type=float, default=0.5,
+    parser.add_argument("--lr", type=float, default=0.1,
                         help="Learning rate")
-    parser.add_argument("--weight_decay", type=float, default=1e-4,
+    parser.add_argument("--weight_decay", type=float, default=5e-4,
                         help="Weight decay (L2 penalty)")
 
     # Checkpointing
@@ -160,7 +160,7 @@ def build_model(args):
 
 def train(args, model: nn.Module):
     # Define loss and optimizer
-    criterion, optimizer, scheduler = define_loss_and_optimizer(model, args.lr, args.weight_decay, args.num_epochs)
+    criterion, optimizer, scheduler = define_loss_and_optimizer(model, args.lr, args.weight_decay)
 
     # Initialize tracking variables
     best_val_loss = float("inf")
@@ -191,7 +191,7 @@ def train(args, model: nn.Module):
         # Validate the model
         val_loss, val_acc = validate_epoch(model, val_loader, criterion, args.device)
 
-        # Update learning rate based on milestones
+        # Update learning rate based on validation loss
         scheduler.step()
 
         # Store metrics for plotting
@@ -260,7 +260,7 @@ def evaluate(args, model: nn.Module):
     model.eval()
 
     # Define loss function
-    criterion, _, _ = define_loss_and_optimizer(model, args.lr, args.weight_decay, args.num_epochs)
+    criterion, _, _ = define_loss_and_optimizer(model, args.lr, args.weight_decay)
 
     # Evaluate the model
     test_loss, test_accuracy, all_preds, all_labels, all_probs = evaluate_model(
@@ -268,7 +268,7 @@ def evaluate(args, model: nn.Module):
     )
     metrics_str = classification_report(all_labels, all_preds, target_names=test_dataset.classes)
 
-    save_metrics(metrics_str) # type: ignore
+    save_metrics(metrics_str) # type:ignore
 
 def main():
     """Main function"""

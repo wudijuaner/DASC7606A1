@@ -7,13 +7,11 @@ import numpy as np
 import torch
 import albumentations as A
 from PIL import Image
-
 from torchvision import transforms
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 
 class ImageAugmenter:
@@ -59,7 +57,7 @@ class ImageAugmenter:
 
     def augment_image(self, image: Image.Image) -> Image.Image:
         """
-        Apply augmentation transforms to a single image using Albumentations.
+        Apply augmentation transforms to a single image using torchvision transforms.
 
         Args:
             image: PIL Image to augment.
@@ -67,12 +65,11 @@ class ImageAugmenter:
         Returns:
             Augmented PIL Image.
         """
-        # Convert PIL to NumPy array (RGB)
-        # Apply Albumentations transform
-        augmented = self.transform(img=image)
 
-        # Convert back to PIL Image
-        return augmented
+        # Apply transforms
+        augmented_image = self.transform(img=image)
+
+        return augmented_image
 
     def process_directory(self, input_dir: str, output_dir: str) -> None:
         """
@@ -154,6 +151,6 @@ def augment_dataset(
         seed: Random seed for reproducibility.
     """
     augmenter = ImageAugmenter(
-        augmentations_per_image=augmentations_per_image, seed=seed, save_original=False
+        augmentations_per_image=augmentations_per_image, seed=seed, save_original=True
     )
     augmenter.process_directory(input_dir, output_dir)

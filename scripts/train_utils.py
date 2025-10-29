@@ -52,21 +52,27 @@ def load_transforms():
     """
     Load the data transformations
     """
+    cifar100_mean = (0.5071, 0.4867, 0.4408)
+    cifar100_std = (0.2675, 0.2565, 0.2761)
+    
     return transforms.Compose([
         transforms.Resize((32, 32)),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5071, 0.4867, 0.4408], std=[0.2675, 0.2565, 0.2761])
+        transforms.Normalize(mean=cifar100_mean, std=cifar100_std)
     ])
-    
+
 def train_load_transforms():
     """
     Load the data transformations for training set
     """
+    cifar100_mean = (0.5071, 0.4867, 0.4408)
+    cifar100_std = (0.2675, 0.2565, 0.2761)
+    
     return transforms.Compose([
         transforms.Resize((32, 32)),
         transforms.ToTensor(),
         Cutout(1, 16),
-        transforms.Normalize(mean=[0.5071, 0.4867, 0.4408], std=[0.2675, 0.2565, 0.2761])
+        transforms.Normalize(mean=cifar100_mean, std=cifar100_std)
     ])
 
 def load_data(data_dir, batch_size):
@@ -82,18 +88,17 @@ def load_data(data_dir, batch_size):
         val_loader: The validation data loader
     """
     # Define data transformations: resize, convert to tensor, and normalize
-    train_data_transforms = train_load_transforms()
-    val_data_transforms = load_transforms()
+    data_transforms = load_transforms()
 
     # Load the train dataset from the augmented data directory
-    train_dataset = datasets.ImageFolder(root=data_dir, transform=train_data_transforms)
+    train_dataset = datasets.ImageFolder(root=data_dir, transform=data_transforms)
 
     # Load the validation dataset from the raw data directory
-    val_dataset = datasets.ImageFolder(root=data_dir + "/../../raw/val", transform=val_data_transforms)
+    val_dataset = datasets.ImageFolder(root=data_dir + "/../../raw/val", transform=data_transforms)
 
     # Create data loaders for training and validation
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=2)
 
     # Print dataset summary
     print(f"Dataset loaded from: {data_dir}")
@@ -105,7 +110,7 @@ def load_data(data_dir, batch_size):
     return train_loader, val_loader
 
 
-def define_loss_and_optimizer(model: nn.Module, lr: float, weight_decay: float, epochs:int):
+def define_loss_and_optimizer(model: nn.Module, lr: float, weight_decay: float):
     """
     Define the loss function and optimizer
     This function is similar to the cell 3. Model Configuration in 04_model_training.ipynb
@@ -113,24 +118,42 @@ def define_loss_and_optimizer(model: nn.Module, lr: float, weight_decay: float, 
         model: The model to train
         lr: Learning rate
         weight_decay: Weight decay
-        epochs: Num of epochs
     Returns:
         criterion: The loss function
         optimizer: The optimizer
         scheduler: The scheduler
     """
     criterion = nn.CrossEntropyLoss()
+    
+    # optimizer: SGD
     optimizer = optim.SGD(
         model.parameters(),
         lr=lr,
         momentum=0.9,
         weight_decay=weight_decay,
-        nesterov=True
+        nesterov=False
     )
-    scheduler = optim.lr_scheduler.MultiStepLR(
-        optimizer,
-        [epochs // 2, epochs * 3 // 4]
-    )
+    
+    # scheduler: cosine annealing with 20-epoch warm-up
+    total_epochs = 300
+    warmup_epochs = 20
+    min_lr = 1e-6
+    
+    def lr_lambda(current_epoch:int):
+        if current_epoch < warmup_epochs:
+            return current_epoch / warmup_epochs  # 0 → 1 over 20 epochs
+        # Cosine annealing phase: from initial lr to min_lr
+        else:
+            # Remaining epochs after warm-up
+            remaining = total_epochs - warmup_epochs
+            current_in_cosine = current_epoch - warmup_epochs
+            # Cosine formula: min_lr + 0.5*(lr - min_lr)*(1 + cos(pi*current/remaining))
+            return float((min_lr / lr) + 0.5 * (1 - min_lr / lr) * (
+                1 + torch.cos(torch.tensor(current_in_cosine / remaining * torch.pi))
+            ))
+            
+    scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
+    
     return criterion, optimizer, scheduler
 
 
